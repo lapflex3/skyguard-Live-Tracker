@@ -8,8 +8,11 @@ import { TargetVisualizer } from './components/TargetVisualizer';
 import { AudioController } from './components/AudioController';
 import { RemoteControl } from './components/RemoteControl';
 import { MissileCam } from './components/MissileCam';
+import { AiMonitoring } from './components/AiMonitoring';
+import { IotControl } from './components/IotControl';
 import { analyzeThreats } from './services/geminiService';
 import { tfliteOptimize } from './services/tfliteService';
+import { connectToLoRa, LoraConfig } from './services/loraService';
 import { 
   Activity, 
   Shield, 
@@ -59,11 +62,16 @@ export default function App() {
   const [aiAnalysis, setAiAnalysis] = useState<string>("Initializing tactical AI...");
   const [selectedTarget, setSelectedTarget] = useState<RadarTarget | null>(null);
   const [logs, setLogs] = useState<string[]>(["System Boot Sequence Initiated...", "Radar Array Online."]);
-  const [activeTab, setActiveTab] = useState<'tactical' | 'visual' | 'comms' | 'control'>('tactical');
+  const [activeTab, setActiveTab] = useState<'tactical' | 'visual' | 'comms' | 'control' | 'ai' | 'iot'>('tactical');
   const [showApproval, setShowApproval] = useState<{ type: string, targetId: string } | null>(null);
   const [showMissileCam, setShowMissileCam] = useState<string | null>(null);
   const [tfliteStatus, setTfliteStatus] = useState<{ active: boolean, msg: string }>({ active: false, msg: "" });
   const [alertLevel, setAlertLevel] = useState<'none' | 'low' | 'medium' | 'high'>('none');
+  const [loraStatus, setLoraStatus] = useState<{ connected: boolean, deviceId: string | null, connecting: boolean }>({
+    connected: false,
+    deviceId: null,
+    connecting: false
+  });
   const targetsRef = useRef<RadarTarget[]>([]);
 
   useEffect(() => {
@@ -89,7 +97,14 @@ export default function App() {
       
       if (nextMode !== data.systemStats.energyMode) {
         newSocket.emit('system:energyMode', nextMode);
-        addLog(recommendation);
+        addLog(`AI DECISION: ${recommendation}`);
+        
+        // Log specific optimization reason
+        if (isThrottling) {
+          addLog(`AI ACTION: Throttling system to prevent thermal runaway.`);
+        } else {
+          addLog(`AI ACTION: Restoring performance based on thermal headroom.`);
+        }
       }
       
       setTfliteStatus({ active: isThrottling, msg: recommendation });
@@ -147,6 +162,33 @@ export default function App() {
     setShowApproval({ type: 'interceptor', targetId: id });
   };
 
+  const handleSetEnergyMode = (mode: 'performance' | 'balanced' | 'eco') => {
+    socket?.emit('system:setEnergyMode', mode);
+    addLog(`Manual Override: System Energy Mode set to ${mode.toUpperCase()}`);
+  };
+
+  const handleConnectLoRa = async () => {
+    setLoraStatus(prev => ({ ...prev, connecting: true }));
+    addLog("LoRa: Initializing long-range IoT handshake...");
+    
+    const config: LoraConfig = {
+      frequency: 915.0,
+      spreadingFactor: 10,
+      bandwidth: 125,
+      power: 14
+    };
+
+    const result = await connectToLoRa(config);
+    
+    if (result.success) {
+      setLoraStatus({ connected: true, deviceId: result.deviceId, connecting: false });
+      addLog(`LoRa: Connection established with ${result.deviceId}`);
+    } else {
+      setLoraStatus({ connected: false, deviceId: null, connecting: false });
+      addLog("LoRa: Connection failed. Signal interference detected.");
+    }
+  };
+
   const confirmAction = () => {
     if (!showApproval) return;
     if (showApproval.type === 'takeover') {
@@ -188,7 +230,11 @@ export default function App() {
         {/* Left Panel: Radar & System Health */}
         <div className="col-span-3 flex flex-col gap-4">
           <RadarDisplay targets={targets} mode={radarState.mode} range={radarState.range} />
-          <SystemHealth stats={systemStats} tfliteStatus={tfliteStatus} />
+          <SystemHealth 
+            stats={systemStats} 
+            tfliteStatus={tfliteStatus} 
+            onSetEnergyMode={handleSetEnergyMode}
+          />
           
           <div className="flex-1 glass-panel p-4 rounded-lg flex flex-col gap-2 overflow-hidden">
             <div className="text-[10px] font-bold uppercase border-b border-radar-dim pb-2 flex items-center gap-2">
@@ -238,6 +284,18 @@ export default function App() {
               className={`px-4 py-2 text-[10px] uppercase font-bold border-t border-x rounded-t transition-all ${activeTab === 'control' ? 'bg-radar-dim border-radar-green text-radar-green' : 'border-radar-dim opacity-50'}`}
             >
               Full Control
+            </button>
+            <button 
+              onClick={() => setActiveTab('ai')}
+              className={`px-4 py-2 text-[10px] uppercase font-bold border-t border-x rounded-t transition-all ${activeTab === 'ai' ? 'bg-radar-dim border-radar-green text-radar-green' : 'border-radar-dim opacity-50'}`}
+            >
+              AI Monitoring
+            </button>
+            <button 
+              onClick={() => setActiveTab('iot')}
+              className={`px-4 py-2 text-[10px] uppercase font-bold border-t border-x rounded-t transition-all ${activeTab === 'iot' ? 'bg-radar-dim border-radar-green text-radar-green' : 'border-radar-dim opacity-50'}`}
+            >
+              IoT & LoRa
             </button>
           </div>
 
@@ -290,7 +348,22 @@ export default function App() {
               )}
               {activeTab === 'control' && (
                 <motion.div key="control" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full glass-panel p-6 rounded">
-                  <RemoteControl target={selectedTarget} />
+                  <RemoteControl 
+                    target={selectedTarget} 
+                    onLaunchInterceptor={handleLaunchInterceptor}
+                    loraStatus={loraStatus}
+                    onConnectLoRa={handleConnectLoRa}
+                  />
+                </motion.div>
+              )}
+              {activeTab === 'ai' && (
+                <motion.div key="ai" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full glass-panel p-6 rounded">
+                  <AiMonitoring stats={systemStats} tfliteStatus={tfliteStatus} />
+                </motion.div>
+              )}
+              {activeTab === 'iot' && (
+                <motion.div key="iot" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full glass-panel p-6 rounded">
+                  <IotControl />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -460,7 +533,10 @@ export default function App() {
       {/* Footer HUD */}
       <footer className="h-8 flex items-center justify-between px-4 glass-panel rounded text-[9px] uppercase tracking-widest">
         <div className="flex gap-4">
-          <span>CPU: {(systemStats.cpu || 0).toFixed(0)}%</span>
+          <div className="flex items-center gap-1">
+            <span>CPU: {(systemStats.cpu || 0).toFixed(0)}%</span>
+            <span className="opacity-40">@ {(systemStats.cpuFreq || 0).toFixed(2)}GHz</span>
+          </div>
           <span>MEM: {((systemStats.ram || 0) * 0.16).toFixed(1)}GB</span>
           <span>DATA: {(systemStats.dataUsage || 0).toFixed(1)}MB</span>
         </div>

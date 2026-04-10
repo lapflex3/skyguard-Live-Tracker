@@ -1,13 +1,14 @@
 import React from 'react';
 import { SystemStats } from '../types';
-import { Cpu, Zap, Database, Thermometer, HardDrive } from 'lucide-react';
+import { Cpu, Zap, Database, Thermometer, HardDrive, ShieldCheck } from 'lucide-react';
 
 interface SystemHealthProps {
   stats: SystemStats;
   tfliteStatus?: { active: boolean, msg: string };
+  onSetEnergyMode?: (mode: 'performance' | 'balanced' | 'eco') => void;
 }
 
-export const SystemHealth: React.FC<SystemHealthProps> = ({ stats, tfliteStatus }) => {
+export const SystemHealth: React.FC<SystemHealthProps> = ({ stats, tfliteStatus, onSetEnergyMode }) => {
   const getStatusColor = (val: number, limit: number = 80) => {
     if (val > limit) return 'text-threat-high';
     if (val > limit - 20) return 'text-threat-medium';
@@ -24,7 +25,10 @@ export const SystemHealth: React.FC<SystemHealthProps> = ({ stats, tfliteStatus 
         <div className="flex flex-col gap-1">
           <div className="flex justify-between text-[9px] uppercase opacity-60">
             <span>CPU Usage</span>
-            <span className={getStatusColor(stats.cpu)}>{(stats.cpu || 0).toFixed(1)}%</span>
+            <div className="flex items-center gap-1">
+              <span className="text-[8px] opacity-40">{(stats.cpuFreq || 0).toFixed(2)} GHz</span>
+              <span className={getStatusColor(stats.cpu)}>{(stats.cpu || 0).toFixed(1)}%</span>
+            </div>
           </div>
           <div className="h-1 bg-radar-dim rounded-full overflow-hidden">
             <div className="h-full bg-radar-green" style={{ width: `${stats.cpu}%` }} />
@@ -148,13 +152,25 @@ export const SystemHealth: React.FC<SystemHealthProps> = ({ stats, tfliteStatus 
             <span className="text-[10px] font-bold">{(stats.dataUsage || 0).toFixed(1)}MB</span>
           </div>
         </div>
-        <div className="flex items-center gap-2 p-2 bg-radar-dim/20 rounded">
-          <Zap size={12} className={stats.energyMode === 'performance' ? 'text-threat-high' : stats.energyMode === 'eco' ? 'text-radar-green' : 'text-threat-medium'} />
-          <div className="flex flex-col">
+        <div className="flex flex-col gap-1 p-2 bg-radar-dim/20 rounded">
+          <div className="flex items-center gap-2">
+            <Zap size={12} className={stats.energyMode === 'performance' ? 'text-threat-high' : stats.energyMode === 'eco' ? 'text-radar-green' : 'text-threat-medium'} />
             <span className="text-[8px] uppercase opacity-50">ENERGY MODE</span>
-            <span className={`text-[10px] font-bold uppercase ${stats.energyMode === 'performance' ? 'text-threat-high' : stats.energyMode === 'eco' ? 'text-radar-green' : 'text-threat-medium'}`}>
-              {stats.energyMode}
-            </span>
+          </div>
+          <div className="flex gap-1 mt-1">
+            {(['eco', 'balanced', 'performance'] as const).map(mode => (
+              <button
+                key={mode}
+                onClick={() => onSetEnergyMode?.(mode)}
+                className={`flex-1 text-[7px] py-0.5 rounded border transition-all uppercase font-bold ${
+                  stats.energyMode === mode 
+                    ? 'bg-radar-green text-military-bg border-radar-green' 
+                    : 'border-radar-dim hover:border-radar-green/50 text-radar-dim'
+                }`}
+              >
+                {mode.slice(0, 4)}
+              </button>
+            ))}
           </div>
         </div>
       </div>

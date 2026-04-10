@@ -12,33 +12,41 @@ export const tfliteOptimize = (stats: SystemStats): {
 } => {
   const { cpu, gpu, npu, mcu, ram, temp, energyMode } = stats;
   
-  // Weights for our "Neural Network" simulation
-  const usageThreshold = 75;
-  const tempThreshold = 60;
+  // Dynamic Thresholds based on current mode
+  const usageLimit = energyMode === 'performance' ? 85 : 75;
+  const tempLimit = energyMode === 'performance' ? 70 : 60;
   
-  const maxUsage = Math.max(cpu, gpu, npu, mcu, ram);
-  const maxTemp = Math.max(temp.cpu, temp.gpu, temp.npu, temp.mcu, temp.ram);
+  const metrics = [
+    { name: 'CPU', val: cpu, temp: temp.cpu },
+    { name: 'GPU', val: gpu, temp: temp.gpu },
+    { name: 'NPU', val: npu, temp: temp.npu },
+    { name: 'MCU', val: mcu, temp: temp.mcu },
+    { name: 'RAM', val: ram, temp: temp.ram }
+  ];
+  
+  const criticalMetric = metrics.find(m => m.val > usageLimit || m.temp > tempLimit);
+  const extremeMetric = metrics.find(m => m.val > 90 || m.temp > 75);
   
   let nextMode = energyMode;
   let recommendation = "";
   let isThrottling = false;
 
-  // Inference Logic (Simulated TFLite model output)
-  if (maxTemp >= tempThreshold || maxUsage >= usageThreshold) {
+  if (extremeMetric) {
     isThrottling = true;
-    if (maxTemp > 65 || maxUsage > 85) {
-      nextMode = 'eco';
-      recommendation = `TFLite: Critical violation detected (${maxTemp.toFixed(1)}°C / ${maxUsage.toFixed(1)}%). Enforcing ECO mode.`;
-    } else {
-      nextMode = 'balanced';
-      recommendation = `TFLite: Approaching limits. Throttling to BALANCED to maintain <60°C and <75% usage.`;
-    }
-  } else if (maxTemp < 50 && maxUsage < 40 && energyMode === 'eco') {
+    nextMode = 'eco';
+    recommendation = `TFLite CRITICAL: ${extremeMetric.name} failure risk (${extremeMetric.val.toFixed(1)}% / ${extremeMetric.temp.toFixed(1)}°C). EMERGENCY ECO MODE.`;
+  } else if (criticalMetric) {
+    isThrottling = true;
     nextMode = 'balanced';
-    recommendation = "TFLite: Thermal headroom detected. Gradual ramp-up to BALANCED.";
-  } else if (maxTemp < 55 && maxUsage < 50 && energyMode === 'balanced') {
-    // We stay in balanced to be safe, unless specifically needed
-    recommendation = "TFLite: System stabilized within optimal parameters.";
+    recommendation = `TFLite WARNING: ${criticalMetric.name} approaching thermal ceiling. Throttling to BALANCED.`;
+  } else if (energyMode === 'eco' && metrics.every(m => m.val < 40 && m.temp < 50)) {
+    nextMode = 'balanced';
+    recommendation = "TFLite OPTIMIZE: Thermal stability confirmed. Restoring BALANCED operations.";
+  } else if (energyMode === 'balanced' && metrics.every(m => m.val < 30 && m.temp < 45)) {
+    // Optional: Suggest performance if needed, but we'll stay safe
+    recommendation = "TFLite: System running at peak efficiency.";
+  } else {
+    recommendation = "TFLite: Continuous monitoring active. All cores within safe parameters.";
   }
 
   return { nextMode, recommendation, isThrottling };

@@ -20,6 +20,7 @@ async function startServer() {
   let targets: any[] = [];
   let systemStats = {
     cpu: 0,
+    cpuFreq: 0,
     gpu: 0,
     npu: 0,
     mcu: 0,
@@ -99,6 +100,10 @@ async function startServer() {
     // Fetch REAL system stats
     systemStats.cpu = getRealCpuUsage();
     systemStats.ram = getRealRamUsage();
+    
+    const cpus = os.cpus();
+    const avgFreq = cpus.reduce((acc, cpu) => acc + cpu.speed, 0) / cpus.length;
+    systemStats.cpuFreq = avgFreq / 1000; // Convert MHz to GHz
     
     // Simulate others as we don't have direct access in standard Node/Container
     const modeMultiplier = systemStats.energyMode === 'performance' ? 1.5 : systemStats.energyMode === 'eco' ? 0.6 : 1.0;

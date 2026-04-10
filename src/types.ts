@@ -15,6 +15,7 @@ export interface RadarTarget {
 
 export interface SystemStats {
   cpu: number;
+  cpuFreq: number;
   gpu: number;
   npu: number;
   mcu: number;

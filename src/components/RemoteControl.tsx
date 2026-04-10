@@ -15,12 +15,17 @@ import {
   Maximize2,
   Sliders,
   RotateCcw,
-  Check
+  Check,
+  Flame,
+  Radio
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface RemoteControlProps {
   target: RadarTarget | null;
+  onLaunchInterceptor?: (id: string) => void;
+  loraStatus?: { connected: boolean, deviceId: string | null, connecting: boolean };
+  onConnectLoRa?: () => void;
 }
 
 interface CalibrationSettings {
@@ -30,7 +35,12 @@ interface CalibrationSettings {
   invertX: boolean;
 }
 
-export const RemoteControl: React.FC<RemoteControlProps> = ({ target }) => {
+export const RemoteControl: React.FC<RemoteControlProps> = ({ 
+  target, 
+  onLaunchInterceptor,
+  loraStatus,
+  onConnectLoRa
+}) => {
   const [isTakeoverActive, setIsTakeoverActive] = useState(false);
   const [throttle, setThrottle] = useState(75);
   const [altitude, setAltitude] = useState(target?.alt || 0);
@@ -245,6 +255,47 @@ export const RemoteControl: React.FC<RemoteControlProps> = ({ target }) => {
                 <span className="text-[8px] uppercase opacity-50">Encryption Status</span>
                 <span className="text-[10px] font-bold text-radar-green">LINK SECURED // AES-512</span>
               </div>
+            </div>
+
+            {/* IoT & LoRa Section */}
+            <div className="p-3 bg-radar-dim/10 rounded border border-radar-dim flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <Radio size={14} className={loraStatus?.connected ? 'text-radar-green' : 'text-radar-dim'} />
+                <span className="text-[8px] uppercase opacity-50">IoT / LoRa Connectivity</span>
+              </div>
+              
+              {loraStatus?.connected ? (
+                <div className="flex flex-col gap-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-bold text-radar-green">{loraStatus.deviceId}</span>
+                    <span className="text-[8px] bg-radar-green/20 text-radar-green px-1 rounded">ONLINE</span>
+                  </div>
+                  <div className="text-[8px] opacity-40">Frequency: 915.0 MHz | SF: 10</div>
+                </div>
+              ) : (
+                <button 
+                  onClick={onConnectLoRa}
+                  disabled={loraStatus?.connecting}
+                  className={`w-full py-2 border border-radar-dim text-[9px] font-bold uppercase hover:border-radar-green transition-all ${loraStatus?.connecting ? 'animate-pulse opacity-50' : ''}`}
+                >
+                  {loraStatus?.connecting ? 'Handshaking...' : 'Connect IoT via LoRa'}
+                </button>
+              )}
+            </div>
+
+            {/* Weapons System */}
+            <div className="mt-auto flex flex-col gap-2">
+              <div className="text-[10px] font-bold uppercase border-b border-radar-dim pb-2 flex items-center gap-2">
+                <ShieldCheck size={14} className="text-threat-high" /> Weapons System
+              </div>
+              <button 
+                onClick={() => onLaunchInterceptor?.(target.id)}
+                className="w-full p-4 bg-threat-high text-white text-xs font-bold uppercase flex items-center justify-center gap-3 hover:bg-red-700 transition-all shadow-[0_0_15px_rgba(255,49,49,0.3)] group"
+              >
+                <Flame size={18} className="group-hover:animate-bounce" />
+                Launch Interceptor Missile
+              </button>
+              <p className="text-[8px] opacity-40 text-center uppercase">Warning: Authorized Personnel Only</p>
             </div>
           </div>
         </div>
