@@ -1,6 +1,6 @@
 export interface RadarTarget {
   id: string;
-  type: 'aircraft' | 'ship' | 'drone' | 'missile' | 'interceptor';
+  type: 'aircraft' | 'ship' | 'drone' | 'missile' | 'interceptor' | 'gold' | 'petroleum' | 'mineral';
   lat: number;
   lng: number;
   alt: number;
@@ -45,7 +45,8 @@ export type RadarMode =
   | 'LPI'
   | 'Multistatic'
   | 'Navigation'
-  | 'Weather';
+  | 'Weather'
+  | 'Subsurface';
 
 export interface RadarState {
   mode: RadarMode;

@@ -62,6 +62,9 @@ export const RadarDisplay: React.FC<RadarDisplayProps> = ({ targets, mode, range
       if (mode === 'Weather') {
         gradient.addColorStop(0, 'rgba(0, 200, 255, 0.3)');
         gradient.addColorStop(0.1, 'rgba(0, 200, 255, 0)');
+      } else if (mode === 'Subsurface') {
+        gradient.addColorStop(0, 'rgba(255, 215, 0, 0.4)'); // Gold sweep
+        gradient.addColorStop(0.1, 'rgba(255, 215, 0, 0)');
       } else {
         gradient.addColorStop(0, 'rgba(0, 255, 65, 0.4)');
         gradient.addColorStop(0.1, 'rgba(0, 255, 65, 0)');
@@ -85,8 +88,14 @@ export const RadarDisplay: React.FC<RadarDisplayProps> = ({ targets, mode, range
 
       // Draw Targets
       targets.forEach(target => {
+        // Subsurface filtering
+        if (mode === 'Subsurface') {
+          if (!['gold', 'petroleum', 'mineral'].includes(target.type)) return;
+        } else {
+          if (['gold', 'petroleum', 'mineral'].includes(target.type)) return;
+        }
+
         // Anti-Stealth logic: some targets might be hidden in normal surveillance
-        if (mode === 'Surveillance' && target.threatLevel === 'low' && Math.random() > 0.9) return;
         
         const relX = (target.lng - 101.686) * 500; 
         const relY = (target.lat - 3.139) * 500;
@@ -105,38 +114,58 @@ export const RadarDisplay: React.FC<RadarDisplayProps> = ({ targets, mode, range
           const flash = isHighThreat ? (Math.sin(Date.now() / 100) > 0) : true;
           
           if (flash) {
-            ctx.fillStyle = isFriendly ? '#3b82f6' : isHighThreat ? '#ff3131' : isMediumThreat ? '#ffcc00' : '#00ff41';
-            
-            if (isHighThreat) {
-              // Diamond shape for high threat
+            if (target.type === 'gold') {
+              ctx.fillStyle = '#ffd700';
+              // Hexagon for gold
               ctx.beginPath();
-              ctx.moveTo(x, y - 5);
-              ctx.lineTo(x + 5, y);
-              ctx.lineTo(x, y + 5);
-              ctx.lineTo(x - 5, y);
+              for (let i = 0; i < 6; i++) {
+                ctx.lineTo(x + 5 * Math.cos(i * Math.PI / 3), y + 5 * Math.sin(i * Math.PI / 3));
+              }
               ctx.closePath();
               ctx.fill();
-              
-              // Outer glow for high threat
-              ctx.strokeStyle = 'rgba(255, 49, 49, 0.5)';
-              ctx.lineWidth = 2;
+            } else if (target.type === 'petroleum') {
+              ctx.fillStyle = '#333333';
+              ctx.strokeStyle = '#ffd700';
+              ctx.lineWidth = 1;
+              // Drop shape for oil
+              ctx.beginPath();
+              ctx.arc(x, y, 4, 0, Math.PI * 2);
+              ctx.fill();
               ctx.stroke();
-            } else if (isFriendly) {
-              // Triangle for friendly/interceptor
-              ctx.beginPath();
-              ctx.moveTo(x, y - 4);
-              ctx.lineTo(x + 4, y + 4);
-              ctx.lineTo(x - 4, y + 4);
-              ctx.closePath();
-              ctx.fill();
-            } else if (isMediumThreat) {
-              // Square for medium threat
-              ctx.fillRect(x - 3, y - 3, 6, 6);
             } else {
-              // Circle for low threat
-              ctx.beginPath();
-              ctx.arc(x, y, 3, 0, Math.PI * 2);
-              ctx.fill();
+              ctx.fillStyle = isFriendly ? '#3b82f6' : isHighThreat ? '#ff3131' : isMediumThreat ? '#ffcc00' : '#00ff41';
+              
+              if (isHighThreat) {
+                // Diamond shape for high threat
+                ctx.beginPath();
+                ctx.moveTo(x, y - 5);
+                ctx.lineTo(x + 5, y);
+                ctx.lineTo(x, y + 5);
+                ctx.lineTo(x - 5, y);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Outer glow for high threat
+                ctx.strokeStyle = 'rgba(255, 49, 49, 0.5)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+              } else if (isFriendly) {
+                // Triangle for friendly/interceptor
+                ctx.beginPath();
+                ctx.moveTo(x, y - 4);
+                ctx.lineTo(x + 4, y + 4);
+                ctx.lineTo(x - 4, y + 4);
+                ctx.closePath();
+                ctx.fill();
+              } else if (isMediumThreat) {
+                // Square for medium threat
+                ctx.fillRect(x - 3, y - 3, 6, 6);
+              } else {
+                // Circle for low threat
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.fill();
+              }
             }
           }
 

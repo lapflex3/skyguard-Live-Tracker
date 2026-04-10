@@ -18,6 +18,7 @@ async function startServer() {
 
   // Radar Simulation State
   let targets: any[] = [];
+  let radarMode: string = "Surveillance";
   let systemStats = {
     cpu: 0,
     cpuFreq: 0,
@@ -57,7 +58,7 @@ async function startServer() {
   
   // Initialize some dummy targets for simulation
   const initTargets = () => {
-    return Array.from({ length: 15 }).map((_, i) => ({
+    const surfaceTargets = Array.from({ length: 15 }).map((_, i) => ({
       id: `TGT-${i + 100}`,
       type: i % 4 === 0 ? "aircraft" : i % 4 === 1 ? "ship" : i % 4 === 2 ? "drone" : "missile",
       lat: 3.139 + (Math.random() - 0.5) * 2,
@@ -69,6 +70,47 @@ async function startServer() {
       threatLevel: Math.random() > 0.8 ? "high" : Math.random() > 0.5 ? "medium" : "low",
       lastUpdate: Date.now(),
     }));
+
+    const subsurfaceTargets = [
+      {
+        id: "GOLD-DEP-01",
+        type: "gold",
+        lat: 3.145,
+        lng: 101.692,
+        alt: -50, // 50m underground
+        speed: 0,
+        heading: 0,
+        status: "detected",
+        threatLevel: "friendly",
+        lastUpdate: Date.now(),
+      },
+      {
+        id: "OIL-RES-01",
+        type: "petroleum",
+        lat: 3.120,
+        lng: 101.650,
+        alt: -1200, // 1.2km underground
+        speed: 0,
+        heading: 0,
+        status: "detected",
+        threatLevel: "low",
+        lastUpdate: Date.now(),
+      },
+      {
+        id: "GOLD-DEP-02",
+        type: "gold",
+        lat: 3.160,
+        lng: 101.710,
+        alt: -30,
+        speed: 0,
+        heading: 0,
+        status: "detected",
+        threatLevel: "friendly",
+        lastUpdate: Date.now(),
+      }
+    ];
+
+    return [...surfaceTargets, ...subsurfaceTargets];
   };
 
   targets = initTargets();
@@ -204,6 +246,12 @@ async function startServer() {
         systemStats.energyMode = mode;
         console.log(`System Energy Mode changed to: ${mode}`);
       }
+    });
+
+    socket.on("radar:setMode", (mode) => {
+      radarMode = mode;
+      console.log(`Radar Mode updated to: ${mode}`);
+      io.emit("log:add", `Radar Mode Switched: ${mode.toUpperCase()}`);
     });
 
     socket.on("disconnect", () => {

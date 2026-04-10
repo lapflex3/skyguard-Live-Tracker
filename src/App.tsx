@@ -12,7 +12,7 @@ import { AiMonitoring } from './components/AiMonitoring';
 import { IotControl } from './components/IotControl';
 import { analyzeThreats } from './services/geminiService';
 import { tfliteOptimize } from './services/tfliteService';
-import { connectToLoRa, LoraConfig } from './services/loraService';
+import { iotService } from './services/iotService';
 import { 
   Activity, 
   Shield, 
@@ -34,14 +34,15 @@ import {
   Bell,
   Cpu,
   Smartphone,
-  ShieldAlert
+  ShieldAlert,
+  RefreshCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 const RADAR_MODES: RadarMode[] = [
   'Surveillance', 'EarlyWarning', 'OTH', 'FireControl', 'Tracking', 
   'AESA', 'Doppler', 'SAR', 'GMTI', 'AntiStealth', 'LPI', 
-  'Multistatic', 'Navigation', 'Weather'
+  'Multistatic', 'Navigation', 'Weather', 'Subsurface'
 ];
 
 export default function App() {
@@ -146,6 +147,7 @@ export default function App() {
 
   const toggleMode = (mode: RadarMode) => {
     setRadarState(prev => ({ ...prev, mode }));
+    socket?.emit('radar:setMode', mode);
     addLog(`Radar Mode Switched: ${mode.toUpperCase()}`);
   };
 
@@ -171,18 +173,13 @@ export default function App() {
     setLoraStatus(prev => ({ ...prev, connecting: true }));
     addLog("LoRa: Initializing long-range IoT handshake...");
     
-    const config: LoraConfig = {
-      frequency: 915.0,
-      spreadingFactor: 10,
-      bandwidth: 125,
-      power: 14
-    };
-
-    const result = await connectToLoRa(config);
+    // Using the first device as a target for this global connection simulation
+    const devices = iotService.getDevices();
+    const success = await iotService.connectToDevice(devices[0].id);
     
-    if (result.success) {
-      setLoraStatus({ connected: true, deviceId: result.deviceId, connecting: false });
-      addLog(`LoRa: Connection established with ${result.deviceId}`);
+    if (success) {
+      setLoraStatus({ connected: true, deviceId: devices[0].id, connecting: false });
+      addLog(`LoRa: Connection established with ${devices[0].id}`);
     } else {
       setLoraStatus({ connected: false, deviceId: null, connecting: false });
       addLog("LoRa: Connection failed. Signal interference detected.");
@@ -218,7 +215,15 @@ export default function App() {
           <span className="text-[10px] bg-radar-dim px-2 py-0.5 rounded text-radar-green">AI INTEGRATED</span>
         </div>
         <div className="flex gap-6 text-[10px] uppercase opacity-70">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => handleConnectLoRa()}
+              disabled={loraStatus.connecting}
+              className="px-3 py-1 text-[10px] font-bold uppercase rounded border border-radar-green text-radar-green hover:bg-radar-green/10 transition-all flex items-center gap-2"
+            >
+              {loraStatus.connecting ? <RefreshCw size={12} className="animate-spin" /> : <Radio size={12} />}
+              {loraStatus.connected ? 'Network Active' : 'Scan LoRa Network'}
+            </button>
             <div className={`w-2 h-2 rounded-full ${alertLevel === 'high' ? 'bg-threat-high animate-ping' : 'bg-radar-green animate-ping'}`} />
             Status: {alertLevel === 'high' ? 'CRITICAL THREAT' : 'SECURE'}
           </div>

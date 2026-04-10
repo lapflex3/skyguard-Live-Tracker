@@ -233,11 +233,21 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({ targets, center, range
                 html: `<div class="${target.threatLevel === 'high' ? 'threat-pulse-high' : ''} ${target.status === 'intercepting' ? 'intercept-pulse' : ''}" style="
                   width: 14px; 
                   height: 14px; 
-                  background: ${target.threatLevel === 'friendly' ? '#3b82f6' : target.threatLevel === 'high' ? '#ff3131' : target.threatLevel === 'medium' ? '#ffcc00' : '#00ff41'}; 
-                  border: 2px solid white;
-                  border-radius: ${target.threatLevel === 'high' ? '0' : '2px'};
+                  background: ${
+                    target.type === 'gold' ? '#ffd700' : 
+                    target.type === 'petroleum' ? '#333333' :
+                    target.threatLevel === 'friendly' ? '#3b82f6' : 
+                    target.threatLevel === 'high' ? '#ff3131' : 
+                    target.threatLevel === 'medium' ? '#ffcc00' : '#00ff41'
+                  }; 
+                  border: 2px solid ${target.type === 'petroleum' ? '#ffd700' : 'white'};
+                  border-radius: ${target.type === 'gold' ? '50%' : target.threatLevel === 'high' ? '0' : '2px'};
                   transform: rotate(${target.heading + (target.threatLevel === 'high' ? 45 : 0)}deg);
-                  box-shadow: 0 0 10px ${target.threatLevel === 'high' ? 'rgba(255, 49, 49, 0.8)' : target.threatLevel === 'friendly' ? 'rgba(59, 130, 246, 0.8)' : 'transparent'};
+                  box-shadow: 0 0 10px ${
+                    target.type === 'gold' ? 'rgba(255, 215, 0, 0.8)' :
+                    target.threatLevel === 'high' ? 'rgba(255, 49, 49, 0.8)' : 
+                    target.threatLevel === 'friendly' ? 'rgba(59, 130, 246, 0.8)' : 'transparent'
+                  };
                 ">
                   ${target.status === 'intercepting' ? '<div class="absolute -top-1 -right-1 w-2 h-2 bg-white rounded-full animate-ping"></div>' : ''}
                 </div>`,
@@ -252,7 +262,7 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({ targets, center, range
                   </div>
                   <div>TYPE: {target.type.toUpperCase()}</div>
                   <div>STATUS: <span className={target.status === 'intercepting' ? 'text-threat-high' : ''}>{target.status.toUpperCase()}</span></div>
-                  <div>ALT: {target.alt}m</div>
+                  <div>{target.alt < 0 ? 'DEPTH' : 'ALT'}: {Math.abs(target.alt)}m</div>
                   <div>SPD: {target.speed}km/h</div>
                   <div className="mt-1 text-threat-high">THREAT: {target.threatLevel.toUpperCase()}</div>
                 </div>
