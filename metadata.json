@@ -1,0 +1,5 @@
+{
+  "name": "Aegis Sentinel: Integrated Military Radar Command Center",
+  "description": "A comprehensive real-time military radar simulation and command center integrating 14 radar modes, real-world mapping, and AI threat analysis.",
+  "requestFramePermissions": ["geolocation"]
+}
